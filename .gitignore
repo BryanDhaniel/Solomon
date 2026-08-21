@@ -19,7 +19,6 @@
 
 # solomon runtime data
 /data
-/workspace
 
 # production
 /build

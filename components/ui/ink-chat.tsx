@@ -16,10 +16,10 @@ import {
   ShieldAlert,
   Terminal,
   X,
-  Files,
-  FolderOpen,
-  FolderPlus,
-  FileText,
+  Search,
+  Mail,
+  Globe,
+  Code2,
 } from "lucide-react";
 import { RenderMarkdown } from "@/components/ui/markdown";
 import BrandMark from "@/components/ui/brand-mark";
@@ -66,28 +66,28 @@ type ServerEvent = {
 /* ─── Prompt starters ────────────────────────── */
 const starters = [
   {
-    icon: Files,
-    label: "List workspace files",
-    hint: "See what's stored",
-    prompt: "List the files in my workspace",
+    icon: Search,
+    label: "Research a topic",
+    hint: "Web search & summary",
+    prompt: "Research the latest AI agent frameworks",
   },
   {
-    icon: FileText,
-    label: "Write a note",
-    hint: "Create notes.txt",
-    prompt: "Write a file named notes.txt with a hello message",
+    icon: Mail,
+    label: "Draft an email",
+    hint: "Compose and send via Gmail",
+    prompt: "Draft an email to my team about the launch",
   },
   {
-    icon: FolderPlus,
-    label: "Create a folder",
-    hint: "Organize into reports",
-    prompt: "Create a folder called reports",
+    icon: Globe,
+    label: "Browse a page",
+    hint: "Open and summarize a URL",
+    prompt: "Browse example.com and summarize it",
   },
   {
-    icon: FolderOpen,
-    label: "Read a file",
-    hint: "Open notes.txt",
-    prompt: "Read the file notes.txt",
+    icon: Code2,
+    label: "Review code",
+    hint: "Attach a file to review",
+    prompt: "Review this code for bugs",
   },
 ];
 

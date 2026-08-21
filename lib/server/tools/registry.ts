@@ -1,5 +1,4 @@
 import { BaseTool } from "./base";
-import { FilesystemTool } from "./filesystem";
 import type { ToolDefinition } from "@/lib/shared/types";
 
 const tools = new Map<string, BaseTool>();
@@ -18,5 +17,4 @@ export function listTools(): ToolDefinition[] {
 
 export function initToolRegistry(): void {
   if (tools.size > 0) return;
-  registerTool(new FilesystemTool());
 }
