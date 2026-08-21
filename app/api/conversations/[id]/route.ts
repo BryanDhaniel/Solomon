@@ -30,3 +30,35 @@ export async function DELETE(
   store.deleteConversation(id);
   return Response.json({ success: true, data: { id } });
 }
+
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+
+  if (typeof body.pinned !== "boolean") {
+    return Response.json(
+      { success: false, error: { code: "invalid_request", message: "pinned (boolean) is required" } },
+      { status: 400 }
+    );
+  }
+
+  const conversation = store.getConversation(id);
+  if (!conversation) {
+    return Response.json(
+      { success: false, error: { code: "not_found", message: "Conversation not found" } },
+      { status: 404 }
+    );
+  }
+
+  store.setPinned(id, body.pinned);
+  return Response.json({ success: true, data: { ...conversation, pinned: body.pinned } });
+}

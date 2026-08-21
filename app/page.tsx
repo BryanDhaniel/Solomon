@@ -47,7 +47,11 @@ export default function Home() {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setConversations(
-          json.data.map((c: { id: string; title: string }) => ({ id: c.id, title: c.title }))
+          json.data.map((c: { id: string; title: string; pinned?: boolean }) => ({
+            id: c.id,
+            title: c.title,
+            pinned: !!c.pinned,
+          }))
         );
       }
     } catch {
@@ -62,7 +66,11 @@ export default function Home() {
       .then((json) => {
         if (cancelled || !json.success || !Array.isArray(json.data)) return;
         setConversations(
-          json.data.map((c: { id: string; title: string }) => ({ id: c.id, title: c.title }))
+          json.data.map((c: { id: string; title: string; pinned?: boolean }) => ({
+            id: c.id,
+            title: c.title,
+            pinned: !!c.pinned,
+          }))
         );
       })
       .catch(() => {
@@ -85,6 +93,38 @@ export default function Home() {
     setActiveId("home");
     setChatKey((k) => k + 1);
   }, []);
+
+  const togglePin = useCallback(
+    async (id: string, pinned: boolean) => {
+      try {
+        await fetch(`/api/conversations/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pinned }),
+        });
+      } catch {
+        /* ignore */
+      }
+      refreshConversations();
+    },
+    [refreshConversations]
+  );
+
+  const deleteConversation = useCallback(
+    async (id: string) => {
+      if (!window.confirm("Delete this chat? This cannot be undone.")) return;
+      try {
+        await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+      } catch {
+        /* ignore */
+      }
+      if (activeId === `conv:${id}`) {
+        handleNewChat();
+      }
+      refreshConversations();
+    },
+    [activeId, handleNewChat, refreshConversations]
+  );
 
   const handleSelect = (id: string) => {
     if (id === "search") {
@@ -122,6 +162,8 @@ export default function Home() {
           activeWorkspace={activeWorkspace}
           onWorkspaceSelect={setActiveWorkspace}
           conversations={conversations}
+          onTogglePin={togglePin}
+          onDeleteConversation={deleteConversation}
         />
       </div>
 

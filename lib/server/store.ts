@@ -13,6 +13,7 @@ import type {
 type ConversationRow = {
   id: string;
   title: string;
+  pinned: number;
   created_at: string;
   updated_at: string;
 };
@@ -68,6 +69,7 @@ function mapConversation(row: ConversationRow): Conversation {
   return {
     id: row.id,
     title: row.title,
+    pinned: !!row.pinned,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -132,14 +134,14 @@ export const store = {
   /* ─── Conversations ─────────────────────── */
   createConversation(id: string, title: string, now: string): Conversation {
     getDb()
-      .prepare("INSERT INTO conversations (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)")
+      .prepare("INSERT INTO conversations (id, title, pinned, created_at, updated_at) VALUES (?, ?, 0, ?, ?)")
       .run(id, title, now, now);
-    return { id, title, createdAt: now, updatedAt: now };
+    return { id, title, pinned: false, createdAt: now, updatedAt: now };
   },
 
   listConversations(): Conversation[] {
     const rows = getDb()
-      .prepare("SELECT * FROM conversations ORDER BY updated_at DESC")
+      .prepare("SELECT * FROM conversations ORDER BY pinned DESC, updated_at DESC")
       .all() as ConversationRow[];
     return rows.map(mapConversation);
   },
@@ -153,6 +155,12 @@ export const store = {
 
   touchConversation(id: string, now: string): void {
     getDb().prepare("UPDATE conversations SET updated_at = ? WHERE id = ?").run(now, id);
+  },
+
+  setPinned(id: string, pinned: boolean): void {
+    getDb()
+      .prepare("UPDATE conversations SET pinned = ? WHERE id = ?")
+      .run(pinned ? 1 : 0, id);
   },
 
   deleteConversation(id: string): void {

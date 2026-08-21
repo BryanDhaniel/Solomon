@@ -11,12 +11,16 @@ import {
   MessageSquare,
   Plus,
   Sparkles,
+  Pin,
+  PinOff,
+  Trash2,
 } from 'lucide-react';
 import BrandMark from '@/components/ui/brand-mark';
 
 export type ConversationItem = {
   id: string;
   title: string;
+  pinned: boolean;
 };
 
 export type SkillItem = {
@@ -175,6 +179,65 @@ function NavItem({
   );
 }
 
+function ConversationRow({
+  title,
+  pinned,
+  active,
+  onSelect,
+  onTogglePin,
+  onDelete,
+}: {
+  title: string;
+  pinned: boolean;
+  active: boolean;
+  onSelect: () => void;
+  onTogglePin: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      className={`group relative flex items-center justify-between px-2.5 py-[7px] rounded-[6px] cursor-pointer transition-all duration-200 select-none ${
+        active
+          ? 'bg-ink-deep/5 dark:bg-ink-deep/8 text-foreground font-medium'
+          : 'text-muted-foreground hover:bg-ink-deep/4 dark:hover:bg-ink-deep/6 hover:text-foreground/90'
+      }`}
+      onClick={onSelect}
+    >
+      {active && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-ink-deep dark:bg-ink-paper" />
+      )}
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <MessageSquare
+          className={`w-[16px] h-[16px] shrink-0 transition-colors ${active ? 'text-foreground' : 'text-ink-wash group-hover:text-ink-stone'}`}
+          strokeWidth={1.5}
+        />
+        <span className="text-[13px] tracking-wide truncate">{title}</span>
+      </div>
+
+      {pinned && (
+        <Pin className="w-3 h-3 text-ink-wash shrink-0 ml-1 group-hover:hidden" strokeWidth={1.5} />
+      )}
+
+      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
+        <button
+          onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+          className={`p-1 rounded-md transition-colors ${pinned ? 'text-ink-deep dark:text-ink-paper' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/30'}`}
+          title={pinned ? 'Unpin' : 'Pin'}
+        >
+          {pinned ? <PinOff className="w-3.5 h-3.5" strokeWidth={1.5} /> : <Pin className="w-3.5 h-3.5" strokeWidth={1.5} />}
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="p-1 rounded-md text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/30 transition-colors"
+          title="Delete"
+        >
+          <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <div className="px-2.5 mb-1.5">
@@ -193,6 +256,8 @@ export function SidebarNav({
   activeWorkspace,
   onWorkspaceSelect,
   conversations = [],
+  onTogglePin,
+  onDeleteConversation,
 }: { 
   className?: string,
   activeId?: string,
@@ -200,6 +265,8 @@ export function SidebarNav({
   activeWorkspace?: string,
   onWorkspaceSelect?: (ws: string) => void,
   conversations?: ConversationItem[],
+  onTogglePin?: (id: string, pinned: boolean) => void,
+  onDeleteConversation?: (id: string) => void,
 }) {
   const [internalId, setInternalId] = useState('home');
   const currentId = activeId !== undefined ? activeId : internalId;
@@ -222,11 +289,14 @@ export function SidebarNav({
             <p className="px-2.5 py-1 text-[12px] text-muted-foreground/50">No conversations yet</p>
           ) : (
             conversations.map(c => (
-              <NavItem
+              <ConversationRow
                 key={c.id}
-                item={{ id: `conv:${c.id}`, title: c.title, icon: MessageSquare }}
-                activeId={currentId}
-                onSelect={handleSelect}
+                title={c.title}
+                pinned={c.pinned}
+                active={currentId === `conv:${c.id}`}
+                onSelect={() => handleSelect(`conv:${c.id}`)}
+                onTogglePin={() => onTogglePin?.(c.id, !c.pinned)}
+                onDelete={() => onDeleteConversation?.(c.id)}
               />
             ))
           )}

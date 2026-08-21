@@ -3,6 +3,7 @@ export type Role = "user" | "assistant";
 export type Conversation = {
   id: string;
   title: string;
+  pinned: boolean;
   createdAt: string;
   updatedAt: string;
 };

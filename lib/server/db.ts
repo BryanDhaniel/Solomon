@@ -12,6 +12,7 @@ function migrate(database: Database.Database) {
     CREATE TABLE IF NOT EXISTS conversations (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
+      pinned INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -68,6 +69,11 @@ function migrate(database: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_steps_execution ON execution_steps(execution_id);
     CREATE INDEX IF NOT EXISTS idx_approvals_execution ON approvals(execution_id);
   `);
+
+  const cols = database.prepare("PRAGMA table_info(conversations)").all() as { name: string }[];
+  if (!cols.some((c) => c.name === "pinned")) {
+    database.exec("ALTER TABLE conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
+  }
 }
 
 export function getDb(): Database.Database {

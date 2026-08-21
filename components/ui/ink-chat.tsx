@@ -422,7 +422,7 @@ export default function InkChat({
 
         <div className="relative flex-1 flex flex-col items-center justify-center px-6 pb-4">
           <div className="mb-8 flex flex-col items-center text-center">
-            <BrandMark size={44} className="mb-5 drop-shadow-[0_2px_6px_oklch(0.12_0_0/0.18)]" />
+            {/* <BrandMark size={44} className="mb-5 drop-shadow-[0_2px_6px_oklch(0.12_0_0/0.18)]" /> */}
             <p className="text-[30px] font-semibold text-foreground tracking-tight leading-tight">
               What shall Solomon finish for you today?
             </p>
