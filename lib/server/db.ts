@@ -13,8 +13,15 @@ function migrate(database: Database.Database) {
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       pinned INTEGER NOT NULL DEFAULT 0,
+      project_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS messages (
@@ -73,6 +80,9 @@ function migrate(database: Database.Database) {
   const cols = database.prepare("PRAGMA table_info(conversations)").all() as { name: string }[];
   if (!cols.some((c) => c.name === "pinned")) {
     database.exec("ALTER TABLE conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!cols.some((c) => c.name === "project_id")) {
+    database.exec("ALTER TABLE conversations ADD COLUMN project_id TEXT");
   }
 }
 

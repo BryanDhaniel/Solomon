@@ -7,6 +7,7 @@ import type {
   ExecutionStatus,
   ExecutionStep,
   Message,
+  Project,
   Role,
 } from "@/lib/shared/types";
 
@@ -14,8 +15,15 @@ type ConversationRow = {
   id: string;
   title: string;
   pinned: number;
+  project_id: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type ProjectRow = {
+  id: string;
+  name: string;
+  created_at: string;
 };
 
 type MessageRow = {
@@ -70,9 +78,14 @@ function mapConversation(row: ConversationRow): Conversation {
     id: row.id,
     title: row.title,
     pinned: !!row.pinned,
+    projectId: row.project_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function mapProject(row: ProjectRow): Project {
+  return { id: row.id, name: row.name, createdAt: row.created_at };
 }
 
 function mapMessage(row: MessageRow): Message {
@@ -136,7 +149,7 @@ export const store = {
     getDb()
       .prepare("INSERT INTO conversations (id, title, pinned, created_at, updated_at) VALUES (?, ?, 0, ?, ?)")
       .run(id, title, now, now);
-    return { id, title, pinned: false, createdAt: now, updatedAt: now };
+    return { id, title, pinned: false, projectId: null, createdAt: now, updatedAt: now };
   },
 
   listConversations(): Conversation[] {
@@ -163,11 +176,49 @@ export const store = {
       .run(pinned ? 1 : 0, id);
   },
 
+  setTitle(id: string, title: string): void {
+    getDb().prepare("UPDATE conversations SET title = ? WHERE id = ?").run(title, id);
+  },
+
+  setProject(id: string, projectId: string | null): void {
+    getDb()
+      .prepare("UPDATE conversations SET project_id = ? WHERE id = ?")
+      .run(projectId, id);
+  },
+
   deleteConversation(id: string): void {
     const db = getDb();
     db.prepare("DELETE FROM messages WHERE conversation_id = ?").run(id);
     db.prepare("DELETE FROM executions WHERE conversation_id = ?").run(id);
     db.prepare("DELETE FROM conversations WHERE id = ?").run(id);
+  },
+
+  /* ─── Projects ───────────────────────────── */
+  createProject(id: string, name: string, now: string): Project {
+    getDb()
+      .prepare("INSERT INTO projects (id, name, created_at) VALUES (?, ?, ?)")
+      .run(id, name, now);
+    return { id, name, createdAt: now };
+  },
+
+  listProjects(): Project[] {
+    const rows = getDb()
+      .prepare("SELECT * FROM projects ORDER BY created_at ASC")
+      .all() as ProjectRow[];
+    return rows.map(mapProject);
+  },
+
+  getProject(id: string): Project | undefined {
+    const row = getDb().prepare("SELECT * FROM projects WHERE id = ?").get(id) as
+      | ProjectRow
+      | undefined;
+    return row ? mapProject(row) : undefined;
+  },
+
+  deleteProject(id: string): void {
+    const db = getDb();
+    db.prepare("UPDATE conversations SET project_id = NULL WHERE project_id = ?").run(id);
+    db.prepare("DELETE FROM projects WHERE id = ?").run(id);
   },
 
   /* ─── Messages ──────────────────────────── */

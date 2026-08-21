@@ -11,6 +11,9 @@ import {
   MessageSquare,
   Plus,
   Sparkles,
+  FolderKanban,
+  MoreHorizontal,
+  Pencil,
   Pin,
   PinOff,
   Trash2,
@@ -21,6 +24,7 @@ export type ConversationItem = {
   id: string;
   title: string;
   pinned: boolean;
+  projectId?: string | null;
 };
 
 export type SkillItem = {
@@ -185,6 +189,8 @@ function ConversationRow({
   active,
   onSelect,
   onTogglePin,
+  onRename,
+  onAddToProject,
   onDelete,
 }: {
   title: string;
@@ -192,8 +198,20 @@ function ConversationRow({
   active: boolean;
   onSelect: () => void;
   onTogglePin: () => void;
+  onRename: (title: string) => void;
+  onAddToProject: () => void;
   onDelete: () => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title);
+
+  const commitRename = () => {
+    const next = draft.trim();
+    if (next && next !== title) onRename(next);
+    setEditing(false);
+  };
+
   return (
     <div
       className={`group relative flex items-center justify-between px-2.5 py-[7px] rounded-[6px] cursor-pointer transition-all duration-200 select-none ${
@@ -211,28 +229,103 @@ function ConversationRow({
           className={`w-[16px] h-[16px] shrink-0 transition-colors ${active ? 'text-foreground' : 'text-ink-wash group-hover:text-ink-stone'}`}
           strokeWidth={1.5}
         />
-        <span className="text-[13px] tracking-wide truncate">{title}</span>
+        {editing ? (
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitRename();
+              if (e.key === 'Escape') setEditing(false);
+            }}
+            className="flex-1 min-w-0 bg-transparent outline-none text-[13px] text-foreground border-b border-ink-wash/50 focus:border-ink-deep dark:focus:border-ink-paper"
+          />
+        ) : (
+          <span className="text-[13px] tracking-wide truncate">{title}</span>
+        )}
       </div>
 
-      {pinned && (
+      {pinned && !editing && (
         <Pin className="w-3 h-3 text-ink-wash shrink-0 ml-1 group-hover:hidden" strokeWidth={1.5} />
       )}
 
-      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
+      <div className="relative shrink-0 ml-1">
         <button
-          onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
-          className={`p-1 rounded-md transition-colors ${pinned ? 'text-ink-deep dark:text-ink-paper' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/30'}`}
-          title={pinned ? 'Unpin' : 'Pin'}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen((o) => !o);
+          }}
+          className={`p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/30 transition-colors ${
+            menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          }`}
+          title="Chat actions"
         >
-          {pinned ? <PinOff className="w-3.5 h-3.5" strokeWidth={1.5} /> : <Pin className="w-3.5 h-3.5" strokeWidth={1.5} />}
+          <MoreHorizontal className="w-4 h-4" strokeWidth={1.5} />
         </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="p-1 rounded-md text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/30 transition-colors"
-          title="Delete"
-        >
-          <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
-        </button>
+
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+            <div className="absolute right-0 top-7 z-50 w-48 bg-card border border-border/60 rounded-lg shadow-xl py-1 overflow-hidden">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTogglePin();
+                  setMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-foreground/90 hover:bg-muted/30 transition-colors text-left"
+              >
+                {pinned ? (
+                  <PinOff className="w-4 h-4 text-ink-wash" strokeWidth={1.5} />
+                ) : (
+                  <Pin className="w-4 h-4 text-ink-wash" strokeWidth={1.5} />
+                )}
+                {pinned ? 'Unpin' : 'Pin'}
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  setDraft(title);
+                  setEditing(true);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-foreground/90 hover:bg-muted/30 transition-colors text-left"
+              >
+                <Pencil className="w-4 h-4 text-ink-wash" strokeWidth={1.5} />
+                Rename
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddToProject();
+                  setMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-foreground/90 hover:bg-muted/30 transition-colors text-left"
+              >
+                <FolderKanban className="w-4 h-4 text-ink-wash" strokeWidth={1.5} />
+                Add to project
+              </button>
+
+              <div className="h-px bg-border/50 my-1 mx-2" />
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                  setMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors text-left"
+              >
+                <Trash2 className="w-4 h-4 text-ink-wash" strokeWidth={1.5} />
+                Delete
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -257,6 +350,8 @@ export function SidebarNav({
   onWorkspaceSelect,
   conversations = [],
   onTogglePin,
+  onRenameConversation,
+  onAddToProject,
   onDeleteConversation,
 }: { 
   className?: string,
@@ -266,6 +361,8 @@ export function SidebarNav({
   onWorkspaceSelect?: (ws: string) => void,
   conversations?: ConversationItem[],
   onTogglePin?: (id: string, pinned: boolean) => void,
+  onRenameConversation?: (id: string, title: string) => void,
+  onAddToProject?: (id: string) => void,
   onDeleteConversation?: (id: string) => void,
 }) {
   const [internalId, setInternalId] = useState('home');
@@ -280,6 +377,7 @@ export function SidebarNav({
         <div className="flex flex-col gap-0.5">
           <NavItem item={{ id: 'search', title: 'Search', icon: Search, shortcut: '⌘K' }} activeId={currentId} onSelect={handleSelect} />
           <NavItem item={{ id: 'home', title: 'New chat', icon: Plus }} activeId={currentId} onSelect={handleSelect} />
+          <NavItem item={{ id: 'projects', title: 'Projects', icon: FolderKanban }} activeId={currentId} onSelect={handleSelect} />
           <NavItem item={{ id: 'skills', title: 'Skills', icon: Sparkles }} activeId={currentId} onSelect={handleSelect} />
         </div>
 
@@ -296,6 +394,8 @@ export function SidebarNav({
                 active={currentId === `conv:${c.id}`}
                 onSelect={() => handleSelect(`conv:${c.id}`)}
                 onTogglePin={() => onTogglePin?.(c.id, !c.pinned)}
+                onRename={(title) => onRenameConversation?.(c.id, title)}
+                onAddToProject={() => onAddToProject?.(c.id)}
                 onDelete={() => onDeleteConversation?.(c.id)}
               />
             ))

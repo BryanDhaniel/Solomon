@@ -4,8 +4,15 @@ export type Conversation = {
   id: string;
   title: string;
   pinned: boolean;
+  projectId: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type Project = {
+  id: string;
+  name: string;
+  createdAt: string;
 };
 
 export type Message = {

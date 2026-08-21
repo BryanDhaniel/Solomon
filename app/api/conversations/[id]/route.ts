@@ -44,13 +44,6 @@ export async function PATCH(
     body = {};
   }
 
-  if (typeof body.pinned !== "boolean") {
-    return Response.json(
-      { success: false, error: { code: "invalid_request", message: "pinned (boolean) is required" } },
-      { status: 400 }
-    );
-  }
-
   const conversation = store.getConversation(id);
   if (!conversation) {
     return Response.json(
@@ -59,6 +52,18 @@ export async function PATCH(
     );
   }
 
-  store.setPinned(id, body.pinned);
-  return Response.json({ success: true, data: { ...conversation, pinned: body.pinned } });
+  if (typeof body.pinned === "boolean") {
+    store.setPinned(id, body.pinned);
+  }
+
+  if (typeof body.title === "string" && body.title.trim()) {
+    store.setTitle(id, body.title.trim());
+  }
+
+  if ("projectId" in body) {
+    const projectId = typeof body.projectId === "string" ? body.projectId : null;
+    store.setProject(id, projectId);
+  }
+
+  return Response.json({ success: true, data: store.getConversation(id) });
 }
