@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getSkill } from "@/lib/server/skills";
+import { fail, ok } from "@/lib/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,10 +12,7 @@ export async function GET(
   const { name } = await context.params;
   const skill = getSkill(name);
   if (!skill) {
-    return Response.json(
-      { success: false, error: { code: "not_found", message: "Skill not found" } },
-      { status: 404 }
-    );
+    return fail("not_found", "Skill not found", 404);
   }
-  return Response.json({ success: true, data: skill });
+  return ok(skill);
 }

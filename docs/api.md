@@ -1,5 +1,7 @@
 # Solomon — API Specification
 
+> **SUPERSEDED:** Endpoint surface evolved (Next.js route handlers, SSE instead of WebSocket, agents/projects resources added) — see [PLAN.md](./PLAN.md). Response-envelope and event-name conventions below still hold.
+
 ## Overview
 Solomon's API is a RESTful HTTP API with WebSocket support for real-time streaming. The API serves both the web frontend and external integrations (SDKs, CLI, third-party apps).
 

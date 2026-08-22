@@ -7,6 +7,7 @@ import {
   PinOff,
   Pencil,
   FolderKanban,
+  Bot,
   Trash2,
 } from "lucide-react";
 
@@ -14,6 +15,7 @@ export default function ChatHeader({
   title,
   pinned,
   projectName,
+  agentName,
   onTogglePin,
   onRename,
   onAddToProject,
@@ -22,6 +24,7 @@ export default function ChatHeader({
   title: string;
   pinned: boolean;
   projectName?: string;
+  agentName?: string;
   onTogglePin: () => void;
   onRename: (title: string) => void;
   onAddToProject: () => void;
@@ -74,6 +77,16 @@ export default function ChatHeader({
             <Pin className="w-3.5 h-3.5 text-ink-wash shrink-0" strokeWidth={1.5} />
           )}
         </div>
+
+        {agentName && !editing && (
+          <span
+            className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/70 font-mono shrink-0"
+            title="Agent running this conversation"
+          >
+            <Bot className="w-3 h-3" strokeWidth={1.5} />
+            {agentName}
+          </span>
+        )}
 
         {projectName && !editing && (
           <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/70 font-mono shrink-0">

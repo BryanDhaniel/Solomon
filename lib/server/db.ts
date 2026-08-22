@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { randomUUID } from "crypto";
 import path from "path";
 import fs from "fs";
 
@@ -14,6 +15,7 @@ function migrate(database: Database.Database) {
       title TEXT NOT NULL,
       pinned INTEGER NOT NULL DEFAULT 0,
       project_id TEXT,
+      agent_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -21,6 +23,16 @@ function migrate(database: Database.Database) {
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS agents (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      skill_names TEXT NOT NULL DEFAULT '[]',
+      tool_names TEXT NOT NULL DEFAULT '[]',
+      is_default INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
 
@@ -84,6 +96,30 @@ function migrate(database: Database.Database) {
   if (!cols.some((c) => c.name === "project_id")) {
     database.exec("ALTER TABLE conversations ADD COLUMN project_id TEXT");
   }
+  if (!cols.some((c) => c.name === "agent_id")) {
+    database.exec("ALTER TABLE conversations ADD COLUMN agent_id TEXT");
+  }
+
+  seedDefaultAgent(database);
+}
+
+const DEFAULT_SKILLS = [
+  "how-to-research",
+  "professional-email",
+  "web-browsing",
+  "code-review-checklist",
+];
+const DEFAULT_TOOLS = ["search", "browse", "gmail", "code_review"];
+
+function seedDefaultAgent(database: Database.Database) {
+  const row = database.prepare("SELECT id FROM agents WHERE is_default = 1").get();
+  if (row) return;
+  database
+    .prepare(
+      `INSERT INTO agents (id, name, description, skill_names, tool_names, is_default, created_at)
+       VALUES (?, 'Solomon', 'The default Solomon Agent — researches the web, browses pages, drafts and sends email with your approval, and reviews uploaded code.', ?, ?, 1, ?)`
+    )
+    .run(randomUUID(), JSON.stringify(DEFAULT_SKILLS), JSON.stringify(DEFAULT_TOOLS), new Date().toISOString());
 }
 
 export function getDb(): Database.Database {

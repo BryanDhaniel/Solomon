@@ -72,3 +72,13 @@ export function getSkill(name: string): SkillDetail | undefined {
     body,
   };
 }
+
+/** Load full content for the named Skills, skipping unknown names (ADR-0001 wholesale injection). */
+export function getSkillContents(names: string[]): { name: string; title: string; body: string }[] {
+  const contents: { name: string; title: string; body: string }[] = [];
+  for (const name of names) {
+    const skill = getSkill(name);
+    if (skill) contents.push({ name: skill.name, title: skill.title, body: skill.body });
+  }
+  return contents;
+}

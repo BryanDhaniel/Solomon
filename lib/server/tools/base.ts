@@ -10,3 +10,7 @@ export abstract class BaseTool {
   abstract execute(input: ToolInput): Promise<ToolOutput>;
   abstract actionType(action: string): ToolActionType;
 }
+
+export function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}

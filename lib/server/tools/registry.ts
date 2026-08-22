@@ -1,4 +1,8 @@
 import { BaseTool } from "./base";
+import { SearchTool } from "./search.tool";
+import { BrowseTool } from "./browse.tool";
+import { GmailTool } from "./gmail.tool";
+import { CodeReviewTool } from "./code-review.tool";
 import type { ToolDefinition } from "@/lib/shared/types";
 
 const tools = new Map<string, BaseTool>();
@@ -15,6 +19,7 @@ export function listTools(): ToolDefinition[] {
   return [...tools.values()].map((t) => t.definition());
 }
 
-export function initToolRegistry(): void {
-  if (tools.size > 0) return;
-}
+registerTool(new SearchTool());
+registerTool(new BrowseTool());
+registerTool(new GmailTool());
+registerTool(new CodeReviewTool());

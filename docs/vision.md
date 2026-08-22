@@ -1,5 +1,7 @@
 # Solomon — Product Vision
 
+> **SUPERSEDED:** Describes the pre-pivot platform (filesystem tools, agent manifests, marketplace). The current objective lives in [PLAN.md](./PLAN.md); canonical language in [CONTEXT.md](../CONTEXT.md).
+
 ## The Problem
 
 Today's AI mostly answers questions. While Large Language Models are incredibly powerful at understanding intent and generating text, users still have to do the heavy lifting. They have to copy-paste responses, switch apps, open websites, execute commands, and repeat manual steps to actually achieve their goals. AI assistants are excellent at generating answers but poor at completing real work. 

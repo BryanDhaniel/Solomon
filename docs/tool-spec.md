@@ -1,5 +1,7 @@
 # Solomon — Tool Specification
 
+> **SUPERSEDED:** Tool set changed (no filesystem/GitHub in v1; search/browse/gmail/code-review instead) — see [PLAN.md](./PLAN.md). The `BaseTool` contract and approval-gate model below still hold.
+
 ## Overview
 Tools are the hands and eyes of Solomon. They are the mechanism by which agents interact with the outside world — reading data, performing actions, and producing results. Every new capability should be added as a Tool. Never hardcode features into Solomon.
 

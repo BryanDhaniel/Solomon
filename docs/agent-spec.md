@@ -1,5 +1,7 @@
 # Solomon — Agent Specification
 
+> **SUPERSEDED:** Agents are now `Skills + Tools` packages (no YAML manifests, no versioning/permissions model in v1) — see [PLAN.md](./PLAN.md) and [ADR-0001](./adr/0001-agents-compose-skills-and-tools.md).
+
 ## Overview
 In Solomon, an agent is a **deployable package** — not just a prompt. An agent encapsulates identity, instructions, model configuration, tools, memory, permissions, knowledge, and versioning into a self-contained unit that can be created, deployed, shared, and used.
 

@@ -1,5 +1,7 @@
 # Solomon — MVP Specification
 
+> **SUPERSEDED:** Describes the pre-pivot platform (filesystem tools, agent manifests, marketplace). The current objective lives in [PLAN.md](./PLAN.md); canonical language in [CONTEXT.md](../CONTEXT.md).
+
 ## Objective
 Prove the core idea: an AI that can plan and execute digital tasks on behalf of users, with human oversight. The MVP should demonstrate end-to-end task completion across at least 2 tool categories.
 

@@ -5,6 +5,7 @@ export type Conversation = {
   title: string;
   pinned: boolean;
   projectId: string | null;
+  agentId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -12,6 +13,16 @@ export type Conversation = {
 export type Project = {
   id: string;
   name: string;
+  createdAt: string;
+};
+
+export type Agent = {
+  id: string;
+  name: string;
+  description: string;
+  skills: string[];
+  tools: string[];
+  isDefault: boolean;
   createdAt: string;
 };
 

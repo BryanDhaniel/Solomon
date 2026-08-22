@@ -1,5 +1,7 @@
 # Solomon — System Architecture
 
+> **SUPERSEDED:** Describes the pre-pivot platform (FastAPI monorepo, WebSocket, Postgres+Redis). The current objective lives in [PLAN.md](./PLAN.md); canonical language in [CONTEXT.md](../CONTEXT.md).
+
 ## Overview
 Solomon's architecture is designed around a request lifecycle where user intent flows through planning, agent selection, tool execution, and result delivery. The system is built as a modular monorepo with clear separation between UI, API, core services, and tool runtime.
 

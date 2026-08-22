@@ -6,8 +6,21 @@ import InkChat from "@/components/ui/ink-chat";
 import SkillDetail from "@/components/ui/skill-detail";
 import SkillsModal from "@/components/ui/skills-modal";
 import ProjectsModal, { type ProjectItem } from "@/components/ui/projects-modal";
+import AgentsModal, { type AgentItem } from "@/components/ui/agents-modal";
+import AgentDetail from "@/components/ui/agent-detail";
 import ChatHeader from "@/components/ui/chat-header";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import {
+  listConversations,
+  listProjects,
+  listAgents,
+  listSkills,
+  updateConversation,
+  createProject as apiCreateProject,
+  createAgent as apiCreateAgent,
+  deleteConversation as apiDeleteConversation,
+  deleteProject as apiDeleteProject,
+} from "@/lib/client/api";
 import {
   PanelLeftClose,
   PanelLeftOpen,
@@ -24,11 +37,13 @@ function titleFor(
   id: string,
   conversations: ConversationItem[],
   skills: SkillItem[],
-  projects: ProjectItem[]
+  projects: ProjectItem[],
+  agents: AgentItem[]
 ): string {
   if (id === "home") return "New chat";
   if (id === "search") return "Search";
   if (id === "projects") return "Projects";
+  if (id === "agents") return "Agents";
   if (id === "api") return "API Keys";
   if (id === "webhooks") return "Webhooks";
   if (id === "settings") return "Settings";
@@ -42,6 +57,9 @@ function titleFor(
   if (id.startsWith("project:")) {
     return projects.find((p) => p.id === id.slice(8))?.name ?? "Project";
   }
+  if (id.startsWith("agent:")) {
+    return agents.find((a) => a.id === id.slice(6))?.name ?? "Agent";
+  }
   return "Solomon";
 }
 
@@ -52,6 +70,7 @@ export default function Home() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
+  const [agentsOpen, setAgentsOpen] = useState(false);
   const [assignProjectFor, setAssignProjectFor] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteProjectTarget, setDeleteProjectTarget] = useState<string | null>(null);
@@ -60,22 +79,11 @@ export default function Home() {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [skills, setSkills] = useState<SkillItem[]>([]);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [agents, setAgents] = useState<AgentItem[]>([]);
 
   const refreshConversations = useCallback(async () => {
     try {
-      const res = await fetch("/api/conversations");
-      if (!res.ok) return;
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setConversations(
-          json.data.map((c: { id: string; title: string; pinned?: boolean; projectId?: string | null }) => ({
-            id: c.id,
-            title: c.title,
-            pinned: !!c.pinned,
-            projectId: c.projectId ?? null,
-          }))
-        );
-      }
+      setConversations(await listConversations());
     } catch {
       /* ignore */
     }
@@ -83,56 +91,47 @@ export default function Home() {
 
   const refreshProjects = useCallback(async () => {
     try {
-      const res = await fetch("/api/projects");
-      if (!res.ok) return;
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setProjects(json.data.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
-      }
+      setProjects(await listProjects());
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const refreshAgents = useCallback(async () => {
+    try {
+      setAgents(await listAgents());
     } catch {
       /* ignore */
     }
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/conversations")
-      .then((res) => res.json())
-      .then((json) => {
-        if (cancelled || !json.success || !Array.isArray(json.data)) return;
-        setConversations(
-          json.data.map((c: { id: string; title: string; pinned?: boolean; projectId?: string | null }) => ({
-            id: c.id,
-            title: c.title,
-            pinned: !!c.pinned,
-            projectId: c.projectId ?? null,
-          }))
-        );
+    listConversations()
+      .then((items) => {
+        if (items) setConversations(items);
       })
       .catch(() => {
         /* ignore */
       });
-    fetch("/api/projects")
-      .then((res) => res.json())
-      .then((json) => {
-        if (!cancelled && json.success && Array.isArray(json.data)) {
-          setProjects(json.data.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
-        }
+    listProjects()
+      .then((items) => {
+        if (items) setProjects(items);
       })
       .catch(() => {
         /* ignore */
       });
-    fetch("/api/skills")
-      .then((res) => res.json())
-      .then((json) => {
-        if (!cancelled && json.success && Array.isArray(json.data)) setSkills(json.data);
+    listAgents()
+      .then((items) => {
+        if (items) setAgents(items);
       })
       .catch(() => {
         /* ignore */
       });
-    return () => {
-      cancelled = true;
-    };
+    listSkills()
+      .then((items) => setSkills(items))
+      .catch(() => {
+        /* ignore */
+      });
   }, []);
 
   const handleNewChat = useCallback(() => {
@@ -152,11 +151,7 @@ export default function Home() {
   const togglePin = useCallback(
     async (id: string, pinned: boolean) => {
       try {
-        await fetch(`/api/conversations/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pinned }),
-        });
+        await updateConversation(id, { pinned });
       } catch {
         /* ignore */
       }
@@ -168,11 +163,7 @@ export default function Home() {
   const renameConversation = useCallback(
     async (id: string, title: string) => {
       try {
-        await fetch(`/api/conversations/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title }),
-        });
+        await updateConversation(id, { title });
       } catch {
         /* ignore */
       }
@@ -184,11 +175,7 @@ export default function Home() {
   const assignConversationProject = useCallback(
     async (id: string, projectId: string | null) => {
       try {
-        await fetch(`/api/conversations/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId }),
-        });
+        await updateConversation(id, { projectId });
       } catch {
         /* ignore */
       }
@@ -200,11 +187,7 @@ export default function Home() {
   const createProject = useCallback(
     async (name: string) => {
       try {
-        await fetch("/api/projects", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
-        });
+        await apiCreateProject(name);
       } catch {
         /* ignore */
       }
@@ -213,12 +196,27 @@ export default function Home() {
     [refreshProjects]
   );
 
+  const createAgent = useCallback(
+    async (name: string) => {
+      try {
+        const agent = await apiCreateAgent({ name });
+        setAgentsOpen(false);
+        setCurrentConversationId(null);
+        setActiveId(`agent:${agent.id}`);
+      } catch {
+        /* ignore */
+      }
+      refreshAgents();
+    },
+    [refreshAgents]
+  );
+
   const confirmDeleteConversation = useCallback(async () => {
     const id = deleteTarget;
     if (!id) return;
     setDeleteTarget(null);
     try {
-      await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+      await apiDeleteConversation(id);
     } catch {
       /* ignore */
     }
@@ -233,7 +231,7 @@ export default function Home() {
     if (!id) return;
     setDeleteProjectTarget(null);
     try {
-      await fetch(`/api/projects/${id}`, { method: "DELETE" });
+      await apiDeleteProject(id);
     } catch {
       /* ignore */
     }
@@ -255,6 +253,10 @@ export default function Home() {
       setProjectsOpen(true);
       return;
     }
+    if (id === "agents") {
+      setAgentsOpen(true);
+      return;
+    }
     if (id === "home") {
       handleNewChat();
       return;
@@ -265,11 +267,12 @@ export default function Home() {
     setActiveId(id);
   };
 
-  const activeTitle = titleFor(activeId, conversations, skills, projects);
+  const activeTitle = titleFor(activeId, conversations, skills, projects, agents);
 
   const isChat = activeId === "home" || activeId.startsWith("conv:");
   const isSkill = activeId.startsWith("skill:");
   const isProject = activeId.startsWith("project:");
+  const isAgent = activeId.startsWith("agent:");
 
   const currentConversation = currentConversationId
     ? conversations.find((c) => c.id === currentConversationId)
@@ -355,6 +358,11 @@ export default function Home() {
                 title={currentConversation.title}
                 pinned={currentConversation.pinned}
                 projectName={currentProjectName}
+                agentName={
+                  currentConversation.agentId
+                    ? agents.find((a) => a.id === currentConversation.agentId)?.name
+                    : undefined
+                }
                 onTogglePin={() => togglePin(currentConversation.id, !currentConversation.pinned)}
                 onRename={(title) => renameConversation(currentConversation.id, title)}
                 onAddToProject={() => setAssignProjectFor(currentConversation.id)}
@@ -370,6 +378,14 @@ export default function Home() {
           </>
         ) : isSkill ? (
           <SkillDetail name={activeId.slice(6)} />
+        ) : isAgent ? (
+          <AgentDetail
+            agentId={activeId.slice(6)}
+            onDeleted={() => {
+              handleNewChat();
+              refreshAgents();
+            }}
+          />
         ) : isProject && activeProject ? (
           <main className="flex-1 overflow-y-auto scrollbar-hide">
             <div className="max-w-[720px] mx-auto px-5 py-8">
@@ -512,6 +528,20 @@ export default function Home() {
           onPick={(p) => {
             assignConversationProject(assignProjectFor, p ? p.id : null);
             setAssignProjectFor(null);
+          }}
+        />
+      )}
+
+      {/* ─── Agents Modal ─────────────────────── */}
+      {agentsOpen && (
+        <AgentsModal
+          agents={agents}
+          onClose={() => setAgentsOpen(false)}
+          onCreate={createAgent}
+          onOpen={(agentId) => {
+            setCurrentConversationId(null);
+            setActiveId(`agent:${agentId}`);
+            setAgentsOpen(false);
           }}
         />
       )}

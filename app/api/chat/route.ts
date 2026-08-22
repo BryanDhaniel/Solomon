@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { randomUUID } from "crypto";
 import { store } from "@/lib/server/store";
-import { initToolRegistry } from "@/lib/server/tools/registry";
 import { createPlan } from "@/lib/server/planner";
 import { runExecution } from "@/lib/server/execution-engine";
+import { fail, readJson } from "@/lib/server/http";
 import { encodeEvent, type ServerEvent } from "@/lib/server/events";
 
 export const runtime = "nodejs";
@@ -15,22 +15,32 @@ function titleFromContent(content: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    body = {};
-  }
+  const body = await readJson(req);
 
   const content = typeof body.content === "string" ? body.content.trim() : "";
   if (!content) {
-    return Response.json(
-      { success: false, error: { code: "invalid_request", message: "content is required" } },
-      { status: 400 }
-    );
+    return fail("invalid_request", "content is required");
   }
 
-  initToolRegistry();
+  let attachment: { name: string; content: string } | undefined;
+  if (
+    body.attachment &&
+    typeof body.attachment === "object" &&
+    typeof (body.attachment as Record<string, unknown>).name === "string" &&
+    typeof (body.attachment as Record<string, unknown>).content === "string"
+  ) {
+    attachment = body.attachment as { name: string; content: string };
+  }
+
+  const requestedAgentId =
+    typeof body.agentId === "string" && body.agentId ? body.agentId : null;
+  const agent =
+    (requestedAgentId ? store.getAgent(requestedAgentId) : undefined) ??
+    store.getDefaultAgent();
+  if (!agent) {
+    return fail("service_unavailable", "No Agent available", 503);
+  }
+
   const now = new Date().toISOString();
 
   let conversation = typeof body.conversationId === "string"
@@ -39,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   let created = false;
   if (!conversation) {
-    conversation = store.createConversation(randomUUID(), titleFromContent(content), now);
+    conversation = store.createConversation(randomUUID(), titleFromContent(content), now, agent?.id ?? null);
     created = true;
   } else {
     store.touchConversation(conversation.id, now);
@@ -49,7 +59,12 @@ export async function POST(req: NextRequest) {
 
   const assistantMessageId = randomUUID();
   const execution = store.createExecution(randomUUID(), conversation.id, now);
-  const plan = await createPlan(content);
+  const plan = await createPlan({
+    conversationId: conversation.id,
+    input: content,
+    agent,
+    attachment,
+  });
 
   const stream = new ReadableStream({
     start(controller) {
@@ -73,6 +88,7 @@ export async function POST(req: NextRequest) {
             emit,
             signal: req.signal,
             assistantMessageId,
+            agent,
           });
           if (result.finalText) {
             store.addMessage(

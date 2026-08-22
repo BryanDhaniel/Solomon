@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { store } from "@/lib/server/store";
+import { fail, ok, readJson } from "@/lib/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,15 +12,9 @@ export async function GET(
   const { id } = await context.params;
   const conversation = store.getConversation(id);
   if (!conversation) {
-    return Response.json(
-      { success: false, error: { code: "not_found", message: "Conversation not found" } },
-      { status: 404 }
-    );
+    return fail("not_found", "Conversation not found", 404);
   }
-  return Response.json({
-    success: true,
-    data: { conversation, messages: store.listMessages(id) },
-  });
+  return ok({ conversation, messages: store.listMessages(id) });
 }
 
 export async function DELETE(
@@ -28,7 +23,7 @@ export async function DELETE(
 ) {
   const { id } = await context.params;
   store.deleteConversation(id);
-  return Response.json({ success: true, data: { id } });
+  return ok({ id });
 }
 
 export async function PATCH(
@@ -36,20 +31,11 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    body = {};
-  }
+  const body = await readJson(req);
 
   const conversation = store.getConversation(id);
   if (!conversation) {
-    return Response.json(
-      { success: false, error: { code: "not_found", message: "Conversation not found" } },
-      { status: 404 }
-    );
+    return fail("not_found", "Conversation not found", 404);
   }
 
   if (typeof body.pinned === "boolean") {
@@ -65,5 +51,5 @@ export async function PATCH(
     store.setProject(id, projectId);
   }
 
-  return Response.json({ success: true, data: store.getConversation(id) });
+  return ok(store.getConversation(id));
 }

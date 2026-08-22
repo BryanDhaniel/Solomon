@@ -2,14 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { RenderMarkdown } from "@/components/ui/markdown";
+import { getSkill, type SkillDetail as SkillData } from "@/lib/client/api";
 import { Sparkles } from "lucide-react";
-
-type SkillData = {
-  name: string;
-  title: string;
-  description: string;
-  body: string;
-};
 
 export default function SkillDetail({ name }: { name: string }) {
   const [skill, setSkill] = useState<SkillData | null>(null);
@@ -17,12 +11,9 @@ export default function SkillDetail({ name }: { name: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/skills/${name}`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (cancelled) return;
-        if (json.success) setSkill(json.data);
-        else setError(true);
+    getSkill(name)
+      .then((data) => {
+        if (!cancelled) setSkill(data);
       })
       .catch(() => {
         if (!cancelled) setError(true);

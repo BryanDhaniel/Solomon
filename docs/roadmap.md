@@ -1,5 +1,7 @@
 # Solomon — Roadmap
 
+> **SUPERSEDED:** Phases redefined around Agents = Skills + Tools — see [PLAN.md](./PLAN.md) milestones.
+
 ## Overview
 Solomon is built in four progressive phases, each expanding the platform's capabilities while maintaining a working, deployable product at every phase boundary.
 

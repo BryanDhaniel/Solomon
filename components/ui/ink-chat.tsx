@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { RenderMarkdown } from "@/components/ui/markdown";
 import BrandMark from "@/components/ui/brand-mark";
+import { getConversation, resolveApproval } from "@/lib/client/api";
 
 /* ─── Types ──────────────────────────────────── */
 type Role = "user" | "assistant";
@@ -124,11 +125,14 @@ export default function InkChat({
   );
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [attachment, setAttachment] = useState<{ name: string; content: string } | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
 
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const assistantIdRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { copied, exec } = useCopy();
 
@@ -139,21 +143,19 @@ export default function InkChat({
   useEffect(() => {
     if (!initialConversationId) return;
     let cancelled = false;
-    fetch(`/api/conversations/${initialConversationId}`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (cancelled || !json.success) return;
-        const msgs = (json.data?.messages ?? []).map(
-          (m: { id: string; role: Role; content: string; createdAt?: string }) => ({
+    getConversation(initialConversationId)
+      .then(({ messages }) => {
+        if (cancelled) return;
+        setMessages(
+          messages.map((m) => ({
             id: m.id,
             role: m.role,
             content: m.content,
             time: m.createdAt
               ? new Date(m.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
               : undefined,
-          })
+          }))
         );
-        setMessages(msgs);
         setConversationId(initialConversationId);
       })
       .catch(() => {
@@ -168,6 +170,44 @@ export default function InkChat({
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 180) + "px";
   };
+
+  const pickFile = () => fileInputRef.current?.click();
+
+  const onFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setAttachError(null);
+    if (file.size > 100 * 1024) {
+      setAttachError("File too large — max 100KB of text.");
+      return;
+    }
+    const content = await file.text();
+    setAttachment({ name: file.name, content });
+  };
+
+  const attachmentChip = attachment ? (
+    <div className="flex items-center gap-2 mb-2 px-1">
+      <span className="flex items-center gap-1.5 h-7 pl-2.5 pr-1.5 rounded-lg bg-muted/50 border border-border/50 text-[12px] font-mono text-muted-foreground">
+        <Paperclip className="w-3 h-3 shrink-0" strokeWidth={1.5} />
+        {attachment.name}
+        <button
+          onClick={() => setAttachment(null)}
+          className="p-0.5 rounded hover:text-foreground hover:bg-muted/50 transition-colors"
+          title="Remove attachment"
+        >
+          <X className="w-3 h-3" strokeWidth={2} />
+        </button>
+      </span>
+      {attachError && (
+        <span className="text-[11px] text-muted-foreground/70">{attachError}</span>
+      )}
+    </div>
+  ) : attachError ? (
+    <div className="mb-2 px-1">
+      <span className="text-[11px] text-muted-foreground/70">{attachError}</span>
+    </div>
+  ) : null;
 
   const appendAssistantChunk = useCallback((text: string) => {
     const id = assistantIdRef.current;
@@ -324,9 +364,15 @@ export default function InkChat({
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content, conversationId }),
+          body: JSON.stringify({
+            content,
+            conversationId,
+            attachment: attachment ?? undefined,
+          }),
           signal: controller.signal,
         });
+        setAttachment(null);
+        setAttachError(null);
 
         if (!res.ok || !res.body) {
           throw new Error(`Request failed (${res.status})`);
@@ -366,7 +412,7 @@ export default function InkChat({
         controllerRef.current = null;
       }
     },
-    [input, busy, conversationId, handleEvent, appendAssistantChunk]
+    [input, busy, conversationId, attachment, handleEvent, appendAssistantChunk]
   );
 
   const respondApproval = useCallback(
@@ -375,11 +421,7 @@ export default function InkChat({
       const id = approval.approvalId;
       setApproval(null);
       try {
-        await fetch(`/api/approvals/${id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ decision }),
-        });
+        await resolveApproval(id, decision);
       } catch {
         /* the stream will surface any failure */
       }
@@ -432,10 +474,19 @@ export default function InkChat({
           </div>
 
           <div className="w-full max-w-[640px]">
+            {attachmentChip}
             <div className="flex items-end gap-2 bg-card border border-border/60 rounded-2xl px-3 py-3 transition-colors focus-within:border-ink-stone/40 shadow-sm">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={onFilePicked}
+                accept=".txt,.md,.js,.jsx,.ts,.tsx,.json,.py,.go,.rs,.java,.c,.cpp,.h,.css,.html,.yml,.yaml,.sql,.sh,.rb,.php,.swift,.kt"
+              />
               <button
+                onClick={pickFile}
                 className="shrink-0 p-2 rounded-xl text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/30 transition-colors self-end"
-                title="Attach file"
+                title="Attach a text or code file"
               >
                 <Paperclip className="w-4 h-4" strokeWidth={2} />
               </button>
@@ -579,10 +630,19 @@ export default function InkChat({
       {/* ── Input bar ────────────────────────── */}
       <div className="shrink-0 px-4 pb-4 pt-2">
         <div className="max-w-[720px] mx-auto">
+          {attachmentChip}
           <div className="flex items-end gap-2 bg-card border border-border/60 rounded-2xl px-3 py-3 transition-colors focus-within:border-ink-stone/40 shadow-sm">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={onFilePicked}
+              accept=".txt,.md,.js,.jsx,.ts,.tsx,.json,.py,.go,.rs,.java,.c,.cpp,.h,.css,.html,.yml,.yaml,.sql,.sh,.rb,.php,.swift,.kt"
+            />
             <button
+              onClick={pickFile}
               className="shrink-0 p-2 rounded-xl text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/30 transition-colors self-end"
-              title="Attach file"
+              title="Attach a text or code file"
             >
               <Paperclip className="w-4 h-4" strokeWidth={2} />
             </button>

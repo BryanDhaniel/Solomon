@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import type {
+  Agent,
   Approval,
   ApprovalStatus,
   Conversation,
@@ -16,6 +17,7 @@ type ConversationRow = {
   title: string;
   pinned: number;
   project_id: string | null;
+  agent_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -23,6 +25,16 @@ type ConversationRow = {
 type ProjectRow = {
   id: string;
   name: string;
+  created_at: string;
+};
+
+type AgentRow = {
+  id: string;
+  name: string;
+  description: string;
+  skill_names: string;
+  tool_names: string;
+  is_default: number;
   created_at: string;
 };
 
@@ -79,6 +91,7 @@ function mapConversation(row: ConversationRow): Conversation {
     title: row.title,
     pinned: !!row.pinned,
     projectId: row.project_id,
+    agentId: row.agent_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -86,6 +99,18 @@ function mapConversation(row: ConversationRow): Conversation {
 
 function mapProject(row: ProjectRow): Project {
   return { id: row.id, name: row.name, createdAt: row.created_at };
+}
+
+function mapAgent(row: AgentRow): Agent {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    skills: JSON.parse(row.skill_names),
+    tools: JSON.parse(row.tool_names),
+    isDefault: !!row.is_default,
+    createdAt: row.created_at,
+  };
 }
 
 function mapMessage(row: MessageRow): Message {
@@ -145,11 +170,21 @@ function mapApproval(row: ApprovalRow): Approval {
 
 export const store = {
   /* ─── Conversations ─────────────────────── */
-  createConversation(id: string, title: string, now: string): Conversation {
+  createConversation(id: string, title: string, now: string, agentId?: string | null): Conversation {
     getDb()
-      .prepare("INSERT INTO conversations (id, title, pinned, created_at, updated_at) VALUES (?, ?, 0, ?, ?)")
-      .run(id, title, now, now);
-    return { id, title, pinned: false, projectId: null, createdAt: now, updatedAt: now };
+      .prepare(
+        "INSERT INTO conversations (id, title, pinned, project_id, agent_id, created_at, updated_at) VALUES (?, ?, 0, NULL, ?, ?, ?)"
+      )
+      .run(id, title, agentId ?? null, now, now);
+    return {
+      id,
+      title,
+      pinned: false,
+      projectId: null,
+      agentId: agentId ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
   },
 
   listConversations(): Conversation[] {
@@ -219,6 +254,64 @@ export const store = {
     const db = getDb();
     db.prepare("UPDATE conversations SET project_id = NULL WHERE project_id = ?").run(id);
     db.prepare("DELETE FROM projects WHERE id = ?").run(id);
+  },
+
+  /* ─── Agents ─────────────────────────────── */
+  createAgent(agent: Agent): Agent {
+    getDb()
+      .prepare(
+        `INSERT INTO agents (id, name, description, skill_names, tool_names, is_default, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        agent.id,
+        agent.name,
+        agent.description,
+        JSON.stringify(agent.skills),
+        JSON.stringify(agent.tools),
+        agent.isDefault ? 1 : 0,
+        agent.createdAt
+      );
+    return agent;
+  },
+
+  listAgents(): Agent[] {
+    const rows = getDb()
+      .prepare("SELECT * FROM agents ORDER BY is_default DESC, created_at ASC")
+      .all() as AgentRow[];
+    return rows.map(mapAgent);
+  },
+
+  getAgent(id: string): Agent | undefined {
+    const row = getDb().prepare("SELECT * FROM agents WHERE id = ?").get(id) as
+      | AgentRow
+      | undefined;
+    return row ? mapAgent(row) : undefined;
+  },
+
+  getDefaultAgent(): Agent | undefined {
+    const row = getDb().prepare("SELECT * FROM agents WHERE is_default = 1").get() as
+      | AgentRow
+      | undefined;
+    return row ? mapAgent(row) : undefined;
+  },
+
+  updateAgent(id: string, fields: Partial<Pick<Agent, "name" | "description" | "skills" | "tools">>): Agent | undefined {
+    const existing = store.getAgent(id);
+    if (!existing) return undefined;
+    const next = { ...existing, ...fields };
+    getDb()
+      .prepare("UPDATE agents SET name = ?, description = ?, skill_names = ?, tool_names = ? WHERE id = ?")
+      .run(next.name, next.description, JSON.stringify(next.skills), JSON.stringify(next.tools), id);
+    return next;
+  },
+
+  deleteAgent(id: string): boolean {
+    const existing = store.getAgent(id);
+    if (!existing || existing.isDefault) return false;
+    getDb().prepare("UPDATE conversations SET agent_id = NULL WHERE agent_id = ?").run(id);
+    getDb().prepare("DELETE FROM agents WHERE id = ?").run(id);
+    return true;
   },
 
   /* ─── Messages ──────────────────────────── */

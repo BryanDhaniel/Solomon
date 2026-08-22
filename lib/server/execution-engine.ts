@@ -1,10 +1,13 @@
 import { randomUUID } from "crypto";
 import { store } from "./store";
 import { getTool } from "./tools/registry";
+import { getSkillContents } from "./skills";
+import { stepIsAllowed } from "./step-policy";
 import { getLlm } from "./planner";
 import { waitForApproval } from "./approval-waiter";
 import type { ServerEvent } from "./events";
 import type {
+  Agent,
   ExecutionStep,
   Plan,
   Step,
@@ -17,6 +20,7 @@ export type EngineHooks = {
   emit: (evt: ServerEvent) => void;
   signal?: AbortSignal;
   assistantMessageId: string;
+  agent?: Agent;
 };
 
 export type EngineResult = {
@@ -85,6 +89,10 @@ export async function runExecution(
   const now = () => new Date().toISOString();
   const results: StepResult[] = [];
   let finalText = "";
+  const composeCtx = () => ({
+    agent: hooks.agent,
+    skills: getSkillContents(hooks.agent?.skills ?? []),
+  });
 
   hooks.emit({
     event: "execution.started",
@@ -130,7 +138,7 @@ export async function runExecution(
     }
 
     if (step.type === "respond") {
-      const text = await getLlm().composeResponse(input, results);
+      const text = step.content ?? (await getLlm().composeResponse(input, results, composeCtx()));
       finalText = text;
       await streamText(text, hooks);
       stepRow.status = "completed";
@@ -150,6 +158,25 @@ export async function runExecution(
           params: step.parameters ?? {},
         },
       });
+
+      // ADR-0001 enforcement: only Tools the Agent owns may run — checked
+      // before the approval gate, so unauthorized actions are never approved.
+      if (!stepIsAllowed(step, hooks.agent)) {
+        const error = `Tool "${step.tool}" is not available to this Agent`;
+        stepRow.status = "failed";
+        stepRow.error = error;
+        stepRow.completedAt = now();
+        store.upsertStep(stepRow);
+        store.updateExecutionStatus(executionId, "failed", {
+          completedAt: now(),
+          error,
+        });
+        hooks.emit({
+          event: "execution.error",
+          data: { executionId, error, code: "tool_not_allowed" },
+        });
+        return { status: "failed", finalText: "", error };
+      }
 
       // Human approval gate for irreversible actions.
       if (tool && tool.actionType(step.action ?? "") === "irreversible") {
@@ -245,7 +272,7 @@ export async function runExecution(
 
   // If the plan had no respond step (e.g. all tool calls), compose a summary.
   if (!plan.steps.some((s) => s.type === "respond")) {
-    finalText = await getLlm().composeResponse(input, results);
+    finalText = await getLlm().composeResponse(input, results, composeCtx());
     await streamText(finalText, hooks);
   }
 

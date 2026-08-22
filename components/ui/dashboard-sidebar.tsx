@@ -12,6 +12,7 @@ import {
   Plus,
   Sparkles,
   FolderKanban,
+  Bot,
   MoreHorizontal,
   Pencil,
   Pin,
@@ -25,6 +26,7 @@ export type ConversationItem = {
   title: string;
   pinned: boolean;
   projectId?: string | null;
+  agentId?: string | null;
 };
 
 export type SkillItem = {
@@ -378,6 +380,7 @@ export function SidebarNav({
           <NavItem item={{ id: 'search', title: 'Search', icon: Search, shortcut: '⌘K' }} activeId={currentId} onSelect={handleSelect} />
           <NavItem item={{ id: 'home', title: 'New chat', icon: Plus }} activeId={currentId} onSelect={handleSelect} />
           <NavItem item={{ id: 'projects', title: 'Projects', icon: FolderKanban }} activeId={currentId} onSelect={handleSelect} />
+          <NavItem item={{ id: 'agents', title: 'Agents', icon: Bot }} activeId={currentId} onSelect={handleSelect} />
           <NavItem item={{ id: 'skills', title: 'Skills', icon: Sparkles }} activeId={currentId} onSelect={handleSelect} />
         </div>
 

@@ -1,28 +1,21 @@
 import { NextRequest } from "next/server";
 import { randomUUID } from "crypto";
 import { store } from "@/lib/server/store";
+import { fail, ok, readJson } from "@/lib/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return Response.json({ success: true, data: store.listProjects() });
+  return ok(store.listProjects());
 }
 
 export async function POST(req: NextRequest) {
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    body = {};
-  }
+  const body = await readJson(req);
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) {
-    return Response.json(
-      { success: false, error: { code: "invalid_request", message: "name is required" } },
-      { status: 400 }
-    );
+    return fail("invalid_request", "name is required");
   }
   const project = store.createProject(randomUUID(), name, new Date().toISOString());
-  return Response.json({ success: true, data: project });
+  return ok(project);
 }
